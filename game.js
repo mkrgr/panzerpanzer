@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
-   PANZERPANZER – isometrisches Panzer-Browserspiel
+   Panzer, Panzer! – isometrisches Panzer-Browserspiel
    Steuerung: WASD/Pfeile fahren, Maus zielen, LMT = MG, RMT/Leertaste = Granate
    ===================================================================== */
 
@@ -329,45 +329,53 @@ function genLevel(li) {
     }
     for (let k = 0; k < 3; k++) { const j = r1 + 4 + Math.floor(R() * 10); if (T(bc, j)) put(bc - 1 + (k % 2), j, OB.wreck(R)); }
   } else if (Z.key === 'home') {
-    const CW = 7;                                     // halbe Korridorbreite (in i-j)
+    const CW = 8;                                     // halbe Korridorbreite (in i-j)
+    const S0 = start.x + start.y, S1 = exit.x + exit.y;
+    // Schlangenlinie: Mittellinie des Weges als Versatz in (i-j) abhängig von (i+j)
+    const ph = R() < 0.5 ? 0 : Math.PI, waves = 2;
+    const curve = S => { const u = clamp((S0 - S) / (S0 - S1), 0, 1); return 9 * Math.sin(TAU * waves * u + ph) * Math.sin(Math.PI * u); };
+    G.curve = curve;
+    // Weglänge (für die km-Anzeige): kumulativ ab dem Ziel
+    G.pathLen = [];
+    let acc = 0;
+    for (let S = 0; S <= 2 * N; S++) { if (S > 0) acc += Math.sqrt((1 + (curve(S) - curve(S - 1)) ** 2) / 2); G.pathLen.push(acc); }
+    const off = (i, j) => (i - j) - curve(i + j + 1);   // Abstand von der Wegmitte
+    const onCurve = (S, d = 0) => { const k = Math.round(curve(S)) + d; const i = Math.floor((S + k) / 2); return [i, i - k]; };
     G.roadblocks = [];
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const k = i - j, t = T(i, j);
+      const k = off(i, j), t = T(i, j);
       if (Math.abs(k) > CW) { t.g = 'void'; continue; }
-      if (Math.abs(k) <= 1) t.g = 'road';
+      if (Math.abs(k) <= 1.1) t.g = 'road';
       else if (nB(i / 4, j / 4) > 0.6) t.g = 'dirt';
       else if (nA(i / 6 + 11, j / 6) > 0.62) t.g = 'grass';
     }
     const putOff = (i, j, o) => { const t = T(i, j); return t && t.g !== 'road' && put(i, j, o); };
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const k = Math.abs(i - j);
+      const k = Math.abs(off(i, j));
       if (k > CW) continue;
-      if (k >= CW - 1 && R() < 0.75) putOff(i, j, R() < 0.85 ? OB.tree(R, 'autumn') : OB.rock(R, Z.rock));
+      if (k >= CW - 1.2 && R() < 0.75) putOff(i, j, R() < 0.85 ? OB.tree(R, 'autumn') : OB.rock(R, Z.rock));
       else if (k >= 3 && nA(i / 5, j / 5) > 0.6 && R() < 0.5) putOff(i, j, OB.tree(R, 'autumn'));
       else if (k >= 3 && R() < 0.01) putOff(i, j, OB.rock(R, Z.rock));
-      else if (k <= 1 && R() < 0.012) put(i, j, OB.wreck(R));
+      else if (k <= 1.1 && R() < 0.012) put(i, j, OB.wreck(R));
     }
     // Bauernhöfe am Wegesrand
     for (let f = 0; f < 7; f++) {
-      const c = 10 + R() * (N - 22), side = R() < 0.5 ? -1 : 1;
-      for (let b = 0; b < 3; b++) {
-        const k = side * (3 + Math.floor(R() * 3)), i = Math.floor(c + k / 2 + R() * 2), jj = i - k;
-        putOff(i, jj, OB.bld(R, 18 + R() * 12, '#8a6a4a', false));
-      }
+      const S = Math.floor(S1 + 16 + R() * (S0 - S1 - 30)), side = R() < 0.5 ? -1 : 1;
+      for (let b = 0; b < 3; b++) { const [i, jj] = onCurve(S + Math.floor(R() * 4) * 2, side * (3 + Math.floor(R() * 3))); putOff(i, jj, OB.bld(R, 18 + R() * 12, '#8a6a4a', false)); }
     }
-    // Straßensperren quer über den Korridor, jeweils mit Lücke an der Straße
-    for (let sb = 14; sb < N - 10; sb += 13) {
-      G.roadblocks.push(sb);
-      const gap = Math.floor(R() * 9) - 4;
-      for (let k = -CW + 1; k <= CW - 1; k++) {
-        if (Math.abs(k) <= 1 || k === gap) continue;
-        const i = sb + Math.ceil(k / 2), jj = i - k;
-        if (R() < 0.85) putOff(i, jj, OB.wall(R, '#a39468', (k & 1) ? 0 : 1));
+    // Straßensperren quer über den Weg, jeweils mit Lücke an der Straße
+    for (let S = S1 + 26; S < S0 - 18; S += 26) {
+      G.roadblocks.push(S);
+      const gap = Math.floor(R() * 11) - 5;
+      for (let d = -CW + 1; d <= CW - 1; d++) {
+        if (Math.abs(d) <= 1 || d === gap) continue;
+        const [i, jj] = onCurve(S, d);
+        if (R() < 0.85) putOff(i, jj, OB.wall(R, '#a39468', (d & 1) ? 0 : 1));
       }
     }
     // Heimatdorf am Ziel
     for (let n = 0; n < 40; n++) {
-      const i = Math.floor(exit.x + R() * 12 - 3), jj = Math.floor(exit.y + R() * 12 - 3), k = Math.abs(i - jj);
+      const i = Math.floor(exit.x + R() * 12 - 3), jj = Math.floor(exit.y + R() * 12 - 3), k = Math.abs(off(i, jj));
       if (k >= 2 && k <= CW - 1 && Math.hypot(i + 0.5 - exit.x, jj + 0.5 - exit.y) > 4.5) putOff(i, jj, OB.bld(R, 22 + R() * 14, '#b07a4a', true));
     }
   } else { // snow
@@ -423,14 +431,14 @@ function genLevel(li) {
     return findFree(15);
   };  const along = f => ({ x: start.x + (exit.x - start.x) * f, y: start.y + (exit.y - start.y) * f });
   for (let k = 0; k < Z.tanks; k++) {
-    if (Z.key === 'home') { const c = along(0.18 + 0.78 * (k + 0.5) / Z.tanks); const p = findNear(c.x, c.y, 4); G.enemies.push(mkTank(p.x, p.y, dm)); }
+    if (Z.key === 'home') { const S = Math.round(start.x + start.y - (start.x + start.y - exit.x - exit.y) * (0.16 + 0.8 * (k + 0.5) / Z.tanks)), kk = G.curve(S); const p = findNear((S + kk) / 2, (S - kk) / 2, 3); G.enemies.push(mkTank(p.x, p.y, dm)); }
     else { const p = findFree(13); G.enemies.push(mkTank(p.x, p.y, dm)); }
   }
 
   for (let k = 0; k < Z.bunkers; k++) {
     let p;
     if (G.bridge) p = findNear(G.bridge.bc, G.bridge.r1 + 3.5 + (k > 1 ? 3 : 0), 4.5);
-    else if (Z.key === 'home' && G.roadblocks.length) { const sb = G.roadblocks[k % G.roadblocks.length] - 2; p = findNear(sb, sb, 3.5); }
+    else if (Z.key === 'home' && G.roadblocks.length) { const S = G.roadblocks[k % G.roadblocks.length] - 4, kk = G.curve(S); p = findNear((S + kk) / 2, (S - kk) / 2, 3); }
     else p = findFree(15);
     G.enemies.push(mkBunker(p.x, p.y, dm, G.bridge ? (k % 2 ? 'mg' : 'cannon') : (R() < 0.5 ? 'mg' : 'cannon')));
   }
@@ -483,7 +491,7 @@ function groundColor(t) {
   }
 }
 function renderGround() {
-  const kR = ZONE.key === 'home' ? 24 : N;          // sichtbarer Bereich in (i-j)
+  const kR = ZONE.key === 'home' ? 34 : N;          // sichtbarer Bereich in (i-j)
   GOX = (kR + 1) * HW; GOY = TH * 2;
   ground = document.createElement('canvas');
   ground.width = (2 * kR + 2) * HW; ground.height = N * TH + TH * 4;
@@ -603,7 +611,7 @@ function newPlayer() {
 function loadLevel(li, fresh) {
   G.level = li;
   G.bullets = []; G.shells = []; G.grenades = []; G.parts = [];
-  G.exitOpen = false; G.roadblocks = []; G.shake = 0; G.kills = 0; G.levelTime = 0;
+  G.exitOpen = false; G.roadblocks = []; G.pathLen = null; G.curve = null; G.shake = 0; G.kills = 0; G.levelTime = 0;
   if (!player || fresh) player = newPlayer();
   genLevel(li);
   const a0 = Math.atan2(G.exit.y - G.start.y, G.exit.x - G.start.x);
@@ -1576,6 +1584,11 @@ const hudEl = $('hud'), hpBar = $('hpBar'), hpTxt = $('hpTxt'), heatBar = $('hea
 const scoreEl = $('score'), zoneName = $('zoneName'), zoneTag = $('zoneTag'), zoneObj = $('zoneObj');
 const mini = $('mini'), mctx = mini.getContext('2d');
 let mmStatic = null;
+function homeLeft() {
+  if (!G.pathLen) return dist(player.x, player.y, G.exit.x, G.exit.y);
+  const S = clamp(Math.round(player.x + player.y), 0, G.pathLen.length - 1), S1 = Math.round(G.exit.x + G.exit.y);
+  return Math.max(0, G.pathLen[S] - G.pathLen[S1]);
+}
 function updateHud() {
   if (G.state === 'menu') return;
   const p = player;
@@ -1589,7 +1602,7 @@ function updateHud() {
   grTxt.textContent = p.shells;
   scoreEl.textContent = G.score;
   const left = objectivesLeft();
-  zoneObj.textContent = ZONE.exitAlways ? `HEIMWEG: NOCH ${(dist(p.x, p.y, G.exit.x, G.exit.y) * 0.025).toFixed(1).replace('.', ',')} KM · ZIELE ${G.objTotal - left}/${G.objTotal}`
+  zoneObj.textContent = ZONE.exitAlways ? `HEIMWEG: NOCH ${(homeLeft() * 0.025).toFixed(1).replace('.', ',')} KM · ZIELE ${G.objTotal - left}/${G.objTotal}`
     : G.exitOpen ? '▶ ZUR EXTRAKTION' : `ZIELE: ${G.objTotal - left} / ${G.objTotal}`;
   zoneObj.classList.toggle('done', G.exitOpen && !ZONE.exitAlways);
   if (toastT > 0) { toastT -= 1 / 60; if (toastT <= 0) toastEl.classList.remove('show'); }
@@ -1654,7 +1667,7 @@ function showMenu() {
   if (engGain) engGain.gain.setTargetAtTime(0, AC.currentTime, 0.2);
   showOverlay(`
     <div class="kicker">ISOMETRISCHE PANZERSCHLACHT</div>
-    <h1>PANZERPANZER</h1>
+    <h1>PANZER, PANZER!</h1>
     <div class="sub">${ZONES.length} KRIEGSGEBIETE · EIN PANZER · KEIN RÜCKZUG</div>
     <div class="controls">
       <b>W A S D / Pfeile</b><span>Fahren</span>
