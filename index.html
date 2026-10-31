@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PANZERPANZER – Isometrische Panzerschlacht</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="zoneBox">
+    <div id="zoneTag">EINSATZ 1/4</div>
+    <div id="zoneName">WÜSTE</div>
+    <div id="zoneObj">ZIELE: 0 / 0</div>
+  </div>
+  <div id="scoreBox">
+    <div id="scoreLine"><label>PUNKTE</label><span id="score">0</span></div>
+    <canvas id="mini" width="360" height="360"></canvas>
+  </div>
+  <div id="statBox">
+    <div class="row"><label>PANZERUNG</label><div class="bar hp"><i id="hpBar"></i></div><span id="hpTxt">100</span></div>
+    <div class="row"><label>MG-HITZE</label><div class="bar heat"><i id="heatBar"></i></div><span id="heatTxt">OK</span></div>
+    <div class="row"><label>GRANATEN</label><div class="bar gren"><i id="grBar"></i></div><span id="grTxt">30</span></div>
+  </div>
+  <div id="keysHint">LMT&nbsp;MG &nbsp;·&nbsp; RMT/LEER&nbsp;GRANATE &nbsp;·&nbsp; C&nbsp;STEUERUNG &nbsp;·&nbsp; M&nbsp;TON &nbsp;·&nbsp; P&nbsp;PAUSE</div>
+  <div id="toast"></div>
+</div>
+
+<div id="overlay"></div>
+
+<script src="game.js"></script>
+</body>
+</html>
