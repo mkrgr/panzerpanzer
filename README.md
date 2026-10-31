@@ -1,5 +1,7 @@
 # Panzer, Panzer!
 
+[Play in browser](https://mkrgr.github.io/panzerpanzer/)
+
 **Isometrische Panzerschlacht im Browser.** Sechs Kriegsgebiete, ein Panzer, kein Rückzug.
 Reines HTML5-Canvas und Vanilla-JavaScript, ohne Build-Schritt und ohne Abhängigkeiten.
 
