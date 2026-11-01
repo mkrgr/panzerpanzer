@@ -11,7 +11,8 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;background:#0b0c09;color:var(--paper);
   font-family:'Share Tech Mono',ui-monospace,Menlo,monospace;user-select:none;-webkit-user-select:none}
-canvas#game{display:block;cursor:none}
+canvas#game{display:block;cursor:none;touch-action:none}
+html{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .hidden{display:none!important}
 
 /* ---------- HUD ---------- */
@@ -50,6 +51,28 @@ canvas#game{display:block;cursor:none}
   font-size:26px;letter-spacing:.08em;color:var(--amber);text-shadow:0 2px 0 #000,0 0 18px rgba(0,0,0,.8);
   opacity:0;transition:opacity .25s;text-align:center;white-space:nowrap}
 #toast.show{opacity:1}
+
+/* ---------- Touch ---------- */
+#touchUI{display:none}
+body.touch #touchUI{display:block}
+.tonly{display:none}
+body.touch .tonly{display:revert}
+body.touch #keysHint{display:none}
+body.touch #statBox{left:50%;transform:translateX(-50%);min-width:300px;bottom:max(14px,env(safe-area-inset-bottom))}
+#stick{position:absolute;left:max(28px,env(safe-area-inset-left));bottom:max(28px,env(safe-area-inset-bottom));width:170px;height:170px;border-radius:50%;
+  background:radial-gradient(circle,rgba(10,12,8,.25),rgba(10,12,8,.6));border:2px solid rgba(232,185,58,.55);pointer-events:auto;touch-action:none}
+#stick::after{content:"";position:absolute;inset:38px;border-radius:50%;border:1px dashed rgba(232,185,58,.3)}
+#knob{position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#f4cf62,#b58a1f);box-shadow:0 4px 14px rgba(0,0,0,.6);z-index:1;pointer-events:none}
+#btnGren{position:absolute;right:max(28px,env(safe-area-inset-right));bottom:max(40px,env(safe-area-inset-bottom));width:124px;height:124px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-family:'Black Ops One',Impact,sans-serif;font-size:16px;letter-spacing:.06em;
+  color:var(--ink);background:radial-gradient(circle at 40% 35%,#efe0a8,#9c8a4e);border:2px solid rgba(0,0,0,.4);
+  box-shadow:0 4px 14px rgba(0,0,0,.6);pointer-events:auto;touch-action:none;opacity:.85}
+#btnGren.on{transform:scale(.93);opacity:1}
+#btnPause{position:absolute;left:50%;top:16px;transform:translateX(-50%);width:52px;height:52px;display:flex;align-items:center;justify-content:center;
+  font-family:'Black Ops One',Impact,sans-serif;font-size:20px;color:var(--amber);background:rgba(10,12,8,.7);border:1px solid rgba(232,185,58,.5);
+  pointer-events:auto;touch-action:none}
+.panel{touch-action:pan-y}
 
 /* ---------- Overlay ---------- */
 #overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;

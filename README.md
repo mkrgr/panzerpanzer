@@ -36,6 +36,19 @@ Fortschritt, Bestwert, gewählte Welt und Steuerungsmodus speichert das Spiel im
 - **Panzer:** W/S geben Gas, A/D drehen die Wanne.
 - **Direkt:** WASD fahren in Bildschirmrichtung.
 
+### Touch (iPad / Tablet)
+
+Auf Touch-Geräten blendet das Spiel eigene Bedienelemente ein:
+
+| Element | Aktion |
+|---|---|
+| **Stick links unten** | Fahren in Bildschirmrichtung, analog (wenig Ausschlag = langsam) |
+| **Spielfeld tippen & halten** | Turm ausrichten und MG feuern, Finger zieht das Fadenkreuz mit |
+| **GRANATE** (rechts unten) | Granate auf die zuletzt angezielte Stelle |
+| **II** (oben Mitte) | Pause |
+
+Stick und Zielen funktionieren gleichzeitig mit zwei Fingern.
+
 ## Einsatzgebiete
 
 Pro Einsatz vernichtest du alle feindlichen Panzer und Bunker und fährst danach zum Extraktionspunkt.

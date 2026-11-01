@@ -111,7 +111,60 @@ canvas.addEventListener('mousedown', e => {
 });
 addEventListener('mouseup', e => { if (e.button === 0) mouse.l = false; if (e.button === 2) mouse.r = false; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
-addEventListener('blur', () => { keys.clear(); mouse.l = mouse.r = false; if (G.state === 'play') pauseGame(); });
+addEventListener('blur', () => { keys.clear(); mouse.l = mouse.r = false; resetTouch(); if (G.state === 'play') pauseGame(); });
+
+// Touch: Stick links unten = fahren, Spielfeld tippen/halten = zielen + MG, Knöpfe für Granate und Pause
+const touch = { on: false, x: 0, y: 0, mag: 0, stickId: null, aimId: null, gren: false };
+const stickEl = document.getElementById('stick'), knobEl = document.getElementById('knob');
+const btnGren = document.getElementById('btnGren'), btnPause = document.getElementById('btnPause');
+const STICK_R = 55;
+function enableTouch() { if (!touch.on) { touch.on = true; document.body.classList.add('touch'); } }
+function resetTouch() {
+  touch.x = touch.y = touch.mag = 0; touch.stickId = touch.aimId = null; touch.gren = false;
+  knobEl.style.transform = ''; btnGren.classList.remove('on');
+}
+function stickMove(t) {
+  const r = stickEl.getBoundingClientRect();
+  let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2);
+  const d = Math.hypot(dx, dy);
+  if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; }
+  touch.x = dx / STICK_R; touch.y = dy / STICK_R;
+  const m = Math.min(1, d / STICK_R);
+  touch.mag = m < 0.15 ? 0 : (m - 0.15) / 0.85;
+  knobEl.style.transform = `translate(${dx}px,${dy}px)`;
+}
+function touchAim(t) { mouse.x = t.clientX / ZOOM; mouse.y = t.clientY / ZOOM; }
+const tOpt = { passive: false };
+if (matchMedia('(pointer: coarse)').matches) enableTouch();
+addEventListener('touchstart', () => initAudio(), { passive: true, capture: true });
+// erst nach dem Loslassen umschalten, damit sich das Layout nicht unter dem Finger verschiebt
+addEventListener('touchend', () => enableTouch(), { passive: true });
+stickEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.changedTouches[0]; touch.stickId = t.identifier; stickMove(t);
+}, tOpt);
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (touch.aimId !== null) return;
+  const t = e.changedTouches[0]; touch.aimId = t.identifier; touchAim(t); mouse.l = true;
+}, tOpt);
+btnGren.addEventListener('touchstart', e => { e.preventDefault(); touch.gren = true; btnGren.classList.add('on'); }, tOpt);
+btnPause.addEventListener('touchstart', e => { e.preventDefault(); if (G.state === 'play') pauseGame(); else if (G.state === 'pause') startPlay(); }, tOpt);
+addEventListener('touchmove', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === touch.stickId) stickMove(t);
+    else if (t.identifier === touch.aimId) touchAim(t);
+  }
+  if (touch.stickId !== null || touch.aimId !== null) e.preventDefault();
+}, tOpt);
+function touchEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === touch.stickId) { touch.stickId = null; touch.x = touch.y = touch.mag = 0; knobEl.style.transform = ''; }
+    if (t.identifier === touch.aimId) { touch.aimId = null; mouse.l = false; }
+  }
+  if (![...e.touches].some(t => t.target === btnGren)) { touch.gren = false; btnGren.classList.remove('on'); }
+}
+addEventListener('touchend', touchEnd); addEventListener('touchcancel', touchEnd);
 
 // ---------------------------------------------------------------- Audio
 let AC = null, master = null, noiseBuf = null, engOsc = null, engGain = null, engFilter = null, muted = false;
@@ -925,7 +978,16 @@ function updatePlayer(dt) {
   const k = c => keys.has(c);
   const up = k('KeyW') || k('ArrowUp'), dn = k('KeyS') || k('ArrowDown'), lf = k('KeyA') || k('ArrowLeft'), rt = k('KeyD') || k('ArrowRight');
   let fwd = 0;
-  if (G.ctrl === 'tank') {
+  // Richtungssteuerung: (dx, dy) in Weltkoordinaten, m = Stärke 0..1
+  const steer = (dx, dy, m) => {
+    const want = Math.atan2(dy, dx), d = angDiff(p.a, want);
+    if (Math.abs(d) > 2.3) { const w2 = want + Math.PI; p.a = rotTo(p.a, w2, 2.8 * dt); fwd = -Math.max(0, Math.cos(angDiff(p.a, w2))) * m; }
+    else { p.a = rotTo(p.a, want, 2.8 * dt); fwd = Math.max(0, Math.cos(d)) ** 2 * m; }
+  };
+  if (touch.mag > 0) {
+    // Stick-Ausschlag (Bildschirmrichtung) in Weltrichtung umrechnen
+    steer(touch.x / HW + touch.y / HH, touch.y / HH - touch.x / HW, touch.mag);
+  } else if (G.ctrl === 'tank') {
     if (up) fwd += 1; if (dn) fwd -= 1;
     const turn = (rt ? 1 : 0) - (lf ? 1 : 0);
     p.a += turn * 2.2 * dt;
@@ -933,11 +995,7 @@ function updatePlayer(dt) {
     let dx = 0, dy = 0;
     if (up) { dx -= 1; dy -= 1; } if (dn) { dx += 1; dy += 1; }
     if (lf) { dx -= 1; dy += 1; } if (rt) { dx += 1; dy -= 1; }
-    if (dx || dy) {
-      const want = Math.atan2(dy, dx), d = angDiff(p.a, want);
-      if (Math.abs(d) > 2.3) { const w2 = want + Math.PI; p.a = rotTo(p.a, w2, 2.8 * dt); fwd = -Math.max(0, Math.cos(angDiff(p.a, w2))); }
-      else { p.a = rotTo(p.a, want, 2.8 * dt); fwd = Math.max(0, Math.cos(d)) ** 2; }
-    }
+    if (dx || dy) steer(dx, dy, 1);
   }
   const target = fwd > 0 ? fwd * 3.4 : fwd * 2.0;
   const acc = target === 0 ? 6 : 4;
@@ -969,7 +1027,7 @@ function updatePlayer(dt) {
     fireMG(); p.mgCd = 0.075; p.heat += 0.038;
     if (p.heat >= 1) { p.heat = 1; p.over = true; toast('MG ÜBERHITZT', 1.2); }
   }
-  if ((mouse.r || k('Space')) && p.gCd <= 0) {
+  if ((mouse.r || k('Space') || touch.gren) && p.gCd <= 0) {
     if (p.shells > 0) { fireGrenade(); p.shells--; p.gCd = 1.1; }
     else { sfx.click(); toast('KEINE GRANATEN', 1); p.gCd = 0.6; }
   }
@@ -1675,6 +1733,9 @@ function showMenu() {
       <b>Linke Maustaste</b><span>Maschinengewehr – stark gegen Infanterie, überhitzt</span>
       <b>Rechte Maustaste / Leertaste</b><span>Granate – Bogenschuss mit Flächenschaden, zerstört Gebäude</span>
       <b>C · M · P/Esc</b><span>Steuerungsmodus · Ton · Pause</span>
+      <b class="tonly">Touch: Stick links</b><span class="tonly">Fahren in Bildschirmrichtung</span>
+      <b class="tonly">Touch: Spielfeld</b><span class="tonly">Tippen &amp; halten – zielen und MG feuern</span>
+      <b class="tonly">Touch: Knöpfe</b><span class="tonly">Granate (rechts unten) · Pause (oben)</span>
     </div>
     <div class="kicker">WELT WÄHLEN</div>
     <div class="worlds" style="grid-template-columns:repeat(${ZONES.length},1fr)">${ZONES.map((z, i) => `
@@ -1707,7 +1768,7 @@ function showBrief() {
     <div class="btns"><button data-act="go">LOS GEHT'S</button></div>
     <div class="hint">${ZONE.exitAlways ? 'ZIEL: GERADEAUS NACH NORDEN – NACH HAUSE KOMMEN' : 'ZIEL: ALLE PANZER UND BUNKER VERNICHTEN · DANN ZUR EXTRAKTION'} · ENTER</div>`);
 }
-function startPlay() { hideOverlay(); G.state = 'play'; mouse.l = mouse.r = false; toast(ZONE.title.toUpperCase(), 2.2); }
+function startPlay() { hideOverlay(); G.state = 'play'; mouse.l = mouse.r = false; resetTouch(); toast(ZONE.title.toUpperCase(), 2.2); }
 function pauseGame() {
   G.state = 'pause';
   if (engGain) engGain.gain.setTargetAtTime(0, AC.currentTime, 0.1);
